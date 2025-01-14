@@ -7,206 +7,202 @@
         // какие блоки я буду использовать
 
 
-        private const byte polSize = 10;
-        public static byte[,] polygon = new byte[polSize, polSize];
-        public static (byte y, byte x) startPos = (0, 0);
-        public static bool downRun = false;
-        public static bool topRun = false;
-        public static bool leftRun = false;
-        public static bool rightRun = false;
-        public static int defa = 1;
+        #region Переменные взаимодействия с игрой
+
+        //Состояния движения
+        enum State
+        {
+            Top,
+            Down,
+            Left,
+            Right,
+            None,
+        }
+
+        //Размер поля
+        const byte polSize = 10;
+        
+        //Время ожидания между обновлениями поля
+        static short delay = 700;
+
+        //Рандомная позиция
+        static Random randPosition =new Random();
+        
+        //Количество еды скушанной змейкой
+        static int count = 0;
+
+        //Позиция игрока
+        static (byte y, byte x) player_position = (0, 0);
+
+        //Позиция еды с заданием значения по умолчанию а то есть рандомной позицией
+        static (byte y, byte x) eat_Position = new ((byte)(new Random().Next(polSize)), (byte)(new Random().Next(polSize)));
+        
+        //Состояние по умолчанию
+        static State state = State.None;
+        #endregion
+
+        #region Символы отображения игрового поля
+
+        //Символ еды
+        static char Eat = 'o';
+        
+        //Символ поля
+        static char Poleygon = '*';
+        
+        //Символ игрока
+        static char Player = '@';
+        #endregion
+
+        //Считывание пользовательского ввода
         static void UserInput()
         {
-            if (defa == 1)
+            if (state == State.None)
             {
-                defa = 0;
-                rightRun = true;
                 RightForward();
             }
+
             if (Console.KeyAvailable)
-                {
+            {
+                state = new State();
+
                 ConsoleKey userKey = Console.ReadKey(true).Key;
-                if (userKey == ConsoleKey.W)
-                    {
-                        //UpForward();
-                       downRun = false;
-                    topRun = true;
-                    leftRun = false;
-                    rightRun = false;
+
+                switch (userKey)
+                {
+                    case ConsoleKey.W:
                         TopForward();
-                        startPos.y--;
-                    }
-                    if (userKey == ConsoleKey.S)
-                    {
-                    topRun = false;
-                       downRun = true;
-                    leftRun= false;
-                    rightRun= false;
-                       DownForward();
-                    startPos.y++;
-                }
-                    if (userKey == ConsoleKey.A)
-                    {
-                        topRun= false;
-                    downRun = false;
-                    rightRun = false;
-                    leftRun = true;
+                        break;
+                    case ConsoleKey.S:
+                        DownForward();
+                        break;
+                    case ConsoleKey.A:
                         LeftForward();
-                    startPos.x++;
+                        break;
+                    case ConsoleKey.D:
+                        RightForward();
+                        break;
                 }
-                    if (userKey == ConsoleKey.D)
-                    {
-                    topRun = false;
-                    downRun = false;
-                    rightRun = true;
-                    leftRun = false;
-                    RightForward();
-                    startPos.x--;
-                }
-                    //PolOutput(polygon);
-                
             }
         }
+
+        //Обновление состояния игры
+        static void UpdateState()
+        {
+            Thread.Sleep(delay);
+            Console.Clear();
+            CheckEat();
+            OutputGame();
+            UserInput();
+        }
+
+        //Движение вниз
         static void DownForward()
         {
-                    for (int y = 0; y != polSize || downRun; y++)
-                    {
-                          UserInput();
-                            startPos.y++;
-                        if (startPos.y >= polSize)
-                        {
-                            startPos.y = 0;
-                        }
-                        Thread.Sleep(1000);
-                        Console.Clear();
-                        PolOutput(polygon);
-                        
-                    }
-
+            state = State.Down;
+            for (int y = 0; y != polSize || state == State.Down; y++)
+            {
+                player_position.y++;
+                if (player_position.y >= polSize)
+                    player_position.y = 0;
+                
+                UpdateState();
+            }
         }
+
+        //Движение вверх
         static void TopForward()
         {
-            for (int y = 0; y != polSize || topRun; y++)
+            state = State.Top;
+            for (byte y = 0; y != polSize || state == State.Top; y++)
             {
-                UserInput();
-                if (startPos.y <= 0)
-                {
-                    startPos.y = polSize;
-                }
-                startPos.y--;
-                Thread.Sleep(1000);
-                Console.Clear();
-                PolOutput(polygon);
+                if (player_position.y <= 0)
+                    player_position.y = polSize;
+                
+                player_position.y--;
+                UpdateState();
             }
-
         }
-        static void RightForward()
-        {
-            for (int y = 0; y != polSize || rightRun; y++)
-            {
-                startPos.x++;
-                if (startPos.x == polSize)
-                {
-                    startPos.x = 0;
-                }
-                Thread.Sleep(1000);
-                Console.Clear();
-                PolOutput(polygon);
-                UserInput();
-            }
 
-        }
+        //Движение в лево
         static void LeftForward()
         {
-            for (int y = 0; y != polSize || leftRun; y++)
+            state = State.Left;
+            for (int y = 0; y != polSize || state == State.Left; y++)
             {
-                if (startPos.x <= 0)
-                {
-                    startPos.x = polSize;
-                }
-                startPos.x--;
-                Thread.Sleep(1000);
-                Console.Clear();
-                PolOutput(polygon);
-                UserInput();
-            }
+                if (player_position.x <= 0)
+                    player_position.x = polSize;
+                player_position.x--;
 
+                UpdateState();
+            }
         }
-        static void Main(string[] args)
+
+        //Движение в право
+        static void RightForward()
         {
-            PolOutput(polygon);
-            while (true)
+            state = State.Right;
+            for (int y = 0; y != polSize || state == State.Right; y++)
             {
+                player_position.x++;
+                if (player_position.x == polSize)
+                    player_position.x = 0;
                 
-                UserInput();
-                Thread.Sleep(1000);
-                Console.Clear();
-                PolOutput(polygon);
-                //var s = Console.ReadKey();
-
-
-                //if (s.Key == ConsoleKey.D)
-                //{
-                //    startPos.x++;
-                //    if (startPos.x == polSize)
-                //    {
-                //        startPos.x = 0;
-                //    }
-                //    Console.Clear();
-
-                //}
-                //if (s.Key == ConsoleKey.S)
-                //{
-                //    startPos.y++;
-                //    if (startPos.y == polSize)
-                //    {
-                //        startPos.y = 0;
-                //    }
-                //    Console.Clear();
-                //}
-                //if (s.Key == ConsoleKey.W)
-                //{
-
-                //    if (startPos.y == 0)
-                //    {
-                //        startPos.y = polSize;
-                //    }
-                //    startPos.y--;
-
-                //}
-                //if (s.Key == ConsoleKey.A)
-                //{
-
-                //    if (startPos.x == 0)
-                //    {
-                //        startPos.x = polSize;
-                //    }
-                //    startPos.x--;
-
-                //}
-
+                UpdateState();
             }
         }
 
-        public static void PolOutput(byte[,] pol)
+        //Проверка не съел ли еду
+        static void CheckEat()
         {
+            if (eat_Position.x == player_position.x &&
+                eat_Position.y == player_position.y)
+            {
+                count+=1;
+                EatNewPosition();
+            }
+        }
 
+        //Новая позиция еды
+        static void EatNewPosition()=>
+                                eat_Position = 
+                                ((byte)(randPosition.Next(polSize)), 
+                                (byte)(randPosition.Next(polSize)));
+        
+        //Вывод игры 
+        static void OutputGame()
+        {
             for (byte y = 0; y != polSize; y++)
             {
                 for (byte x = 0; x != polSize; x++)
                 {
-                    if (startPos.x == x && startPos.y == y)
+                    if (player_position.x == x && player_position.y == y)
                     {
-                        Console.Write('a');
-
+                        Console.Write(Player);
+                    }
+                    else if(eat_Position.x == x && eat_Position.y == y)
+                    {
+                        Console.Write(Eat);
                     }
                     else
                     {
-                        Console.Write($"*");
+                        Console.Write(Poleygon);
                     }
                 }
                 Console.Write("\n");
             }
+            Console.Write($"\nEat: {count} \n");
         }
+
+        static void Main(string[] args)
+        {
+            while (true)
+            {
+                UserInput();
+                UpdateState();
+            }
+        }
+
+       
     }
+    
 }
