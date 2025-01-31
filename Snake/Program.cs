@@ -6,7 +6,9 @@
         // какие структуры данных я буду использовать
         // какие блоки я буду использовать
 
-
+        // Стены убрать и добавление в произвольном месте
+        // голова змеи 
+        // умирает если касается себя
         #region Переменные взаимодействия с игрой
 
         //Состояния движения
@@ -17,13 +19,14 @@
             Left,
             Right,
             None,
+            GameOver,
         }
 
         //Размер поля
-        const byte polSize = 10;
+        const byte polSize = 9;
         
         //Время ожидания между обновлениями поля
-        static short delay = 700;
+        static short delay = 200;
 
         //Рандомная позиция
         static Random randPosition =new Random();
@@ -32,7 +35,8 @@
         static int count = 0;
 
         //Позиция игрока
-        static (byte y, byte x) player_position = (0, 0);
+        static Queue<(byte y, byte x)> head = new();
+        static (byte y,byte x) last_Position =(0,0);
 
         //Позиция еды с заданием значения по умолчанию а то есть рандомной позицией
         static (byte y, byte x) eat_Position = new ((byte)(new Random().Next(polSize)), (byte)(new Random().Next(polSize)));
@@ -99,26 +103,33 @@
         static void DownForward()
         {
             state = State.Down;
-            for (int y = 0; y != polSize || state == State.Down; y++)
-            {
-                player_position.y++;
-                if (player_position.y >= polSize)
-                    player_position.y = 0;
-                
-                UpdateState();
-            }
+                for (byte y = head.Peek().y; state == State.Down; y++)
+                {
+
+                if (head.Count > 0)
+                {
+                    var old_lock = head.Dequeue();
+                    last_Position = old_lock;
+                }
+                head.Enqueue((y, head.Peek().x));
+                   
+                    UpdateState();
+                }
+            
         }
 
         //Движение вверх
         static void TopForward()
         {
             state = State.Top;
-            for (byte y = 0; y != polSize || state == State.Top; y++)
+            for (byte y = head.First().y; state == State.Top; y--)
             {
-                if (player_position.y <= 0)
-                    player_position.y = polSize;
-                
-                player_position.y--;
+                if (head.Count > 0)
+                {
+                    var old_lock = head.Dequeue();
+                    last_Position = old_lock;
+                }
+                head.Enqueue((y, head.Peek().x));
                 UpdateState();
             }
         }
@@ -127,12 +138,15 @@
         static void LeftForward()
         {
             state = State.Left;
-            for (int y = 0; y != polSize || state == State.Left; y++)
-            {
-                if (player_position.x <= 0)
-                    player_position.x = polSize;
-                player_position.x--;
 
+            for (byte x = head.First().x;  state == State.Left; x--)
+            {
+                if (head.Count > 0)
+                {
+                    var old_lock = head.Dequeue();
+                    last_Position = old_lock;
+                }
+                head.Enqueue((head.Peek().y, x));
                 UpdateState();
             }
         }
@@ -141,24 +155,32 @@
         static void RightForward()
         {
             state = State.Right;
-            for (int y = 0; y != polSize || state == State.Right; y++)
+            for (byte x = head.First().x;state == State.Right; x++)
             {
-                player_position.x++;
-                if (player_position.x == polSize)
-                    player_position.x = 0;
-                
-                UpdateState();
+                    if(head.Count > 0)
+                    {
+                    var old_lock = head.Dequeue();
+                    last_Position = old_lock;
+                    }
+                    head.Enqueue((head.Peek().y, x));
+                    UpdateState();
             }
         }
 
         //Проверка не съел ли еду
         static void CheckEat()
         {
-            if (eat_Position.x == player_position.x &&
-                eat_Position.y == player_position.y)
+            if (head.Count > 0)
             {
-                count+=1;
-                EatNewPosition();
+                if (eat_Position.x == head.Peek().x &&
+                    eat_Position.y == head.Peek().y)
+                {
+                    count += 1;
+                    EatNewPosition();
+
+                    head.Enqueue(last_Position);
+
+                }
             }
         }
 
@@ -167,25 +189,29 @@
                                 eat_Position = 
                                 ((byte)(randPosition.Next(polSize)), 
                                 (byte)(randPosition.Next(polSize)));
-        
-        //Вывод игры 
+
+        ////Вывод игры 
         static void OutputGame()
         {
-            for (byte y = 0; y != polSize; y++)
+            for (byte y = 0; y != 20; y++)
             {
-                for (byte x = 0; x != polSize; x++)
+                for (byte x = 0; x != 20; x++)
                 {
-                    if (player_position.x == x && player_position.y == y)
+                    foreach (var item in head)
                     {
-                        Console.Write(Player);
+                        if (item.x == x && item.y == y)
+                        {
+                            Console.Write(Player);
+                        }
                     }
-                    else if(eat_Position.x == x && eat_Position.y == y)
+
+                    if (eat_Position.x == x && eat_Position.y == y)
                     {
                         Console.Write(Eat);
                     }
                     else
                     {
-                        Console.Write(Poleygon);
+                        Console.Write(" ");
                     }
                 }
                 Console.Write("\n");
@@ -195,6 +221,8 @@
 
         static void Main(string[] args)
         {
+            head.Enqueue((0, 0));
+            head.Enqueue((0, 1));
             while (true)
             {
                 UserInput();
